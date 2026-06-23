@@ -1,0 +1,20 @@
+{
+  "packageName": "opencode-write-json-repair",
+  "createdFor": "Windows 10 PowerShell 7.6 OpenCode write tool-call JSON parse failure",
+  "targetCheckout": "/private/tmp/opencode-ultraresearch",
+  "targetHead": "57ce1b9",
+  "requiredPowerShell": "7.6",
+  "requiredWindows": "Windows 10",
+  "patchFile": "impl/patches/opencode-write-json-repair.patch",
+  "installerFile": "impl/install-opencode-write-json-repair.ps1",
+  "installationFile": "impl/INSTALLATION.md",
+  "evidenceDir": ".omo/ulw-loop/opencode-write-json-repair-impl/evidence",
+  "touchedPaths": [
+    "packages/opencode/src/session/llm.ts",
+    "packages/opencode/src/session/tool-call-diagnostics.ts",
+    "packages/opencode/src/tool/invalid.ts",
+    "packages/opencode/src/tool/write.ts",
+    "packages/opencode/test/session/tool-call-diagnostics.test.ts",
+    "packages/opencode/test/tool/parameters.test.ts"
+  ]
+}

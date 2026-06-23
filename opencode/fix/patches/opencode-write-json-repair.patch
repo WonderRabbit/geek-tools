@@ -1,0 +1,398 @@
+diff --git a/packages/opencode/src/session/llm.ts b/packages/opencode/src/session/llm.ts
+index adacfc4..0d313ab 100644
+--- a/packages/opencode/src/session/llm.ts
++++ b/packages/opencode/src/session/llm.ts
+@@ -6,7 +6,7 @@ import { SessionV1 } from "@opencode-ai/core/v1/session"
+ import { serviceUse } from "@opencode-ai/core/effect/service-use"
+ import { Context, Effect, Layer } from "effect"
+ import * as Stream from "effect/Stream"
+-import { streamText, wrapLanguageModel, type ModelMessage, type Tool } from "ai"
++import { generateText, streamText, wrapLanguageModel, type ModelMessage, type Tool } from "ai"
+ import type { LLMEvent } from "@opencode-ai/llm"
+ import { LLMClient, RequestExecutor, WebSocketExecutor } from "@opencode-ai/llm/route"
+ import type { LLMClientService } from "@opencode-ai/llm/route"
+@@ -29,6 +29,7 @@ import * as OtelTracer from "@effect/opentelemetry/Tracer"
+ import { LLMAISDK } from "./llm/ai-sdk"
+ import { LLMNativeRuntime } from "./llm/native-runtime"
+ import { LLMRequestPrep } from "./llm/request"
++import { summarizeToolCallInput } from "./tool-call-diagnostics"
+ 
+ export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
+ 
+@@ -51,6 +52,11 @@ export type StreamRequest = StreamInput & {
+   abort: AbortSignal
+ }
+ 
++const WRITE_TOOL_NAME = "write"
++const WRITE_TOOL_EXPECTED_KEYS = ["filePath", "content"] as const
++const WRITE_REPAIR_MAX_OUTPUT_TOKENS = 800
++const WRITE_REPAIR_MAX_PROMPT_CHARS = 4000
++
+ export interface Interface {
+   readonly stream: (input: StreamInput) => Stream.Stream<LLMEvent, unknown>
+ }
+@@ -275,6 +281,7 @@ const live: Layer.Layer<
+       })
+       // Default runtime path: AI SDK owns provider execution and tool dispatch;
+       // LLMAISDK.toLLMEvents below normalizes fullStream parts for the processor.
++      const repairedToolCallIDs = new Set<string>()
+       return {
+         type: "ai-sdk" as const,
+         result: streamText({
+@@ -301,11 +308,40 @@ const live: Layer.Layer<
+                 toolName: lower,
+               }
+             }
++            const diagnostic = summarizeToolCallInput(
++              failed.toolCall.input,
++              failed.toolCall.toolName === WRITE_TOOL_NAME ? WRITE_TOOL_EXPECTED_KEYS : [],
++            )
++            if (
++              failed.toolCall.toolName === WRITE_TOOL_NAME &&
++              shouldRepairWriteToolCall(failed.error.message) &&
++              !repairedToolCallIDs.has(failed.toolCall.toolCallId)
++            ) {
++              repairedToolCallIDs.add(failed.toolCall.toolCallId)
++              const repaired = await yieldWriteRepair({
++                abort: input.abort,
++                error: failed.error.message,
++                messages: prepared.messages,
++                model: language,
++                rawSnippet: diagnostic.rawSnippet,
++                tool: prepared.tools[WRITE_TOOL_NAME],
++              })
++              if (repaired) {
++                return {
++                  ...failed.toolCall,
++                  input: JSON.stringify(repaired),
++                }
++              }
++            }
+             return {
+               ...failed.toolCall,
+               input: JSON.stringify({
+                 tool: failed.toolCall.toolName,
+                 error: failed.error.message,
++                diagnostic: diagnostic.kind,
++                expectedKeys: failed.toolCall.toolName === WRITE_TOOL_NAME ? WRITE_TOOL_EXPECTED_KEYS : [],
++                receivedKeys: diagnostic.receivedKeys,
++                rawSnippet: diagnostic.rawSnippet,
+               }),
+               toolName: "invalid",
+             }
+@@ -384,6 +420,56 @@ const live: Layer.Layer<
+   }),
+ )
+ 
++type WriteRepairInput = {
++  readonly abort: AbortSignal
++  readonly error: string
++  readonly messages: readonly ModelMessage[]
++  readonly model: Parameters<typeof generateText>[0]["model"]
++  readonly rawSnippet: string
++  readonly tool: Tool | undefined
++}
++
++type WriteRepairArgs = {
++  readonly filePath: string
++  readonly content: string
++}
++
++function shouldRepairWriteToolCall(error: string) {
++  return /InvalidToolInputError|JSON parsing failed|Invalid tool input|Schema/i.test(error)
++}
++
++async function yieldWriteRepair(input: WriteRepairInput): Promise<WriteRepairArgs | undefined> {
++  if (!input.tool) return undefined
++  const prompt = [
++    "Repair the failed OpenCode write tool call.",
++    "Return a write tool call with exactly these string keys: filePath, content.",
++    "Do not invent another tool name. Do not add alias keys such as path or fileContent.",
++    `Original parser error: ${input.error}`,
++    `Original raw input snippet: ${input.rawSnippet}`,
++  ].join("\n")
++  const result = await generateText({
++    abortSignal: input.abort,
++    maxOutputTokens: WRITE_REPAIR_MAX_OUTPUT_TOKENS,
++    messages: [...input.messages, { role: "user", content: prompt.slice(0, WRITE_REPAIR_MAX_PROMPT_CHARS) }],
++    model: input.model,
++    tools: { write: stripToolExecution(input.tool) },
++  })
++  const repaired = result.toolCalls.find((toolCall) => toolCall.toolName === WRITE_TOOL_NAME)
++  if (!repaired || !isWriteRepairArgs(repaired.input)) return undefined
++  return repaired.input
++}
++
++function isWriteRepairArgs(value: unknown): value is WriteRepairArgs {
++  if (typeof value !== "object" || value === null || Array.isArray(value)) return false
++  if (!("filePath" in value) || !("content" in value)) return false
++  return typeof value.filePath === "string" && typeof value.content === "string"
++}
++
++function stripToolExecution(tool: Tool): Tool {
++  const { execute: _execute, ...schemaOnlyTool } = tool
++  return schemaOnlyTool
++}
++
+ export const layer = live.pipe(Layer.provide(Permission.defaultLayer), Layer.provide(EventV2Bridge.defaultLayer))
+ 
+ export const defaultLayer = Layer.suspend(() =>
+diff --git a/packages/opencode/src/session/tool-call-diagnostics.ts b/packages/opencode/src/session/tool-call-diagnostics.ts
+new file mode 100644
+index 0000000..abffe58
+--- /dev/null
++++ b/packages/opencode/src/session/tool-call-diagnostics.ts
+@@ -0,0 +1,93 @@
++export const TOOL_CALL_DIAGNOSTIC_KIND = {
++  truncatedJson: "truncated_json",
++  invalidJson: "invalid_json",
++  extraText: "extra_text",
++  schemaMissingKey: "schema_missing_key",
++  schemaWrongType: "schema_wrong_type",
++  unknown: "unknown",
++} as const
++
++export type ToolCallDiagnosticKind =
++  (typeof TOOL_CALL_DIAGNOSTIC_KIND)[keyof typeof TOOL_CALL_DIAGNOSTIC_KIND]
++
++export type ToolCallDiagnostic = {
++  readonly kind: ToolCallDiagnosticKind
++  readonly rawSnippet: string
++  readonly receivedKeys: readonly string[]
++}
++
++export const MAX_DIAGNOSTIC_CHARS = 240
++export const MAX_DIAGNOSTIC_LINES = 4
++
++export function summarizeToolCallInput(input: unknown, expectedKeys: readonly string[] = []): ToolCallDiagnostic {
++  const raw = rawToolInput(input)
++  const rawSnippet = redactToolCallInput(raw)
++  const parsed = parseJson(raw)
++  if (parsed.ok) {
++    if (!isRecord(parsed.value)) {
++      return { kind: TOOL_CALL_DIAGNOSTIC_KIND.schemaWrongType, rawSnippet, receivedKeys: [] }
++    }
++    const receivedKeys = Object.keys(parsed.value).sort()
++    const missing = expectedKeys.filter((key) => !(key in parsed.value))
++    if (missing.length > 0) {
++      return { kind: TOOL_CALL_DIAGNOSTIC_KIND.schemaMissingKey, rawSnippet, receivedKeys }
++    }
++    const wrongType = expectedKeys.some((key) => typeof parsed.value[key] !== "string")
++    return {
++      kind: wrongType ? TOOL_CALL_DIAGNOSTIC_KIND.schemaWrongType : TOOL_CALL_DIAGNOSTIC_KIND.unknown,
++      rawSnippet,
++      receivedKeys,
++    }
++  }
++
++  return {
++    kind: classifyJsonFailure(raw, parsed.error),
++    rawSnippet,
++    receivedKeys: [],
++  }
++}
++
++export function redactToolCallInput(raw: string): string {
++  const redacted = raw.replace(
++    /("(?:api[_-]?key|authorization|token|password|secret)"\s*:\s*")[^"]*(")/giu,
++    "$1[redacted]$2",
++  )
++  const lines = redacted.split(/\r?\n/u).slice(0, MAX_DIAGNOSTIC_LINES)
++  const snippet = lines.join("\n")
++  return snippet.length > MAX_DIAGNOSTIC_CHARS ? `${snippet.slice(0, MAX_DIAGNOSTIC_CHARS)}...` : snippet
++}
++
++function rawToolInput(input: unknown): string {
++  if (typeof input === "string") return input
++  try {
++    return JSON.stringify(input)
++  } catch (error) {
++    if (error instanceof TypeError) return String(input)
++    throw error
++  }
++}
++
++type ParseResult = { readonly ok: true; readonly value: unknown } | { readonly ok: false; readonly error: SyntaxError }
++
++function parseJson(raw: string): ParseResult {
++  try {
++    return { ok: true, value: JSON.parse(raw) }
++  } catch (error) {
++    if (error instanceof SyntaxError) return { ok: false, error }
++    throw error
++  }
++}
++
++function classifyJsonFailure(raw: string, error: SyntaxError): ToolCallDiagnosticKind {
++  const trimmed = raw.trim()
++  if (trimmed.includes("</tool_call>")) return TOOL_CALL_DIAGNOSTIC_KIND.extraText
++  if (trimmed === "{" || trimmed === "[" || /unexpected end|unterminated|expected '?\}|'?\]/iu.test(error.message)) {
++    return TOOL_CALL_DIAGNOSTIC_KIND.truncatedJson
++  }
++  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return TOOL_CALL_DIAGNOSTIC_KIND.extraText
++  return TOOL_CALL_DIAGNOSTIC_KIND.invalidJson
++}
++
++function isRecord(value: unknown): value is Record<string, unknown> {
++  return typeof value === "object" && value !== null && !Array.isArray(value)
++}
+diff --git a/packages/opencode/src/tool/invalid.ts b/packages/opencode/src/tool/invalid.ts
+index b8d145d..3e45b9c 100644
+--- a/packages/opencode/src/tool/invalid.ts
++++ b/packages/opencode/src/tool/invalid.ts
+@@ -4,17 +4,41 @@ import * as Tool from "./tool"
+ export const Parameters = Schema.Struct({
+   tool: Schema.String,
+   error: Schema.String,
++  diagnostic: Schema.optional(Schema.String),
++  expectedKeys: Schema.optional(Schema.Array(Schema.String)),
++  receivedKeys: Schema.optional(Schema.Array(Schema.String)),
++  rawSnippet: Schema.optional(Schema.String),
+ })
+ 
++type InvalidToolParams = {
++  readonly tool: string
++  readonly error: string
++  readonly diagnostic?: string
++  readonly expectedKeys?: readonly string[]
++  readonly receivedKeys?: readonly string[]
++  readonly rawSnippet?: string
++}
++
+ export const InvalidTool = Tool.define(
+   "invalid",
+   Effect.succeed({
+     description: "Do not use",
+     parameters: Parameters,
+-    execute: (params: { tool: string; error: string }) =>
++    execute: (params: InvalidToolParams) =>
+       Effect.succeed({
+         title: "Invalid Tool",
+-        output: `The arguments provided to the tool are invalid: ${params.error}`,
++        output: [
++          `The arguments provided to the ${params.tool} tool are invalid: ${params.error}`,
++          params.diagnostic ? `Diagnostic: ${params.diagnostic}` : undefined,
++          params.expectedKeys?.length ? `Expected keys: ${params.expectedKeys.join(", ")}` : undefined,
++          params.receivedKeys?.length ? `Received keys: ${params.receivedKeys.join(", ")}` : undefined,
++          params.rawSnippet ? `Raw input snippet: ${params.rawSnippet}` : undefined,
++          params.tool === "write"
++            ? 'Retry with one complete JSON object containing exactly string keys "filePath" and "content".'
++            : undefined,
++        ]
++          .filter((line): line is string => line !== undefined)
++          .join("\n"),
+         metadata: {},
+       }),
+   }),
+diff --git a/packages/opencode/src/tool/write.ts b/packages/opencode/src/tool/write.ts
+index 37be6d8..6d4c5f0 100644
+--- a/packages/opencode/src/tool/write.ts
++++ b/packages/opencode/src/tool/write.ts
+@@ -18,10 +18,10 @@ import * as Bom from "@/util/bom"
+ const MAX_PROJECT_DIAGNOSTICS_FILES = 5
+ 
+ export const Parameters = Schema.Struct({
+-  content: Schema.String.annotate({ description: "The content to write to the file" }),
+   filePath: Schema.String.annotate({
+     description: "The absolute path to the file to write (must be absolute, not relative)",
+   }),
++  content: Schema.String.annotate({ description: "The content to write to the file" }),
+ })
+ 
+ export const WriteTool = Tool.define(
+diff --git a/packages/opencode/test/session/tool-call-diagnostics.test.ts b/packages/opencode/test/session/tool-call-diagnostics.test.ts
+new file mode 100644
+index 0000000..a5fa375
+--- /dev/null
++++ b/packages/opencode/test/session/tool-call-diagnostics.test.ts
+@@ -0,0 +1,48 @@
++import { describe, expect, test } from "bun:test"
++import { summarizeToolCallInput } from "../../src/session/tool-call-diagnostics"
++
++describe("tool-call diagnostics", () => {
++  test("classifies Text brace as truncated_json", () => {
++    const diagnostic = summarizeToolCallInput("{", ["filePath", "content"])
++
++    expect(diagnostic.kind).toBe("truncated_json")
++    expect(diagnostic.rawSnippet).toBe("{")
++    expect(diagnostic.receivedKeys).toEqual([])
++  })
++
++  test("classifies tool-call tail text as extra_text", () => {
++    const diagnostic = summarizeToolCallInput('{"filePath":"/tmp/a.md","content":"ok"}</tool_call>', [
++      "filePath",
++      "content",
++    ])
++
++    expect(diagnostic.kind).toBe("extra_text")
++  })
++
++  test("classifies valid JSON with missing write keys as schema_missing_key", () => {
++    const diagnostic = summarizeToolCallInput('{"content":"# Title"}', ["filePath", "content"])
++
++    expect(diagnostic.kind).toBe("schema_missing_key")
++    expect(diagnostic.receivedKeys).toEqual(["content"])
++  })
++
++  test("keeps valid escaped Markdown content unknown to schema errors", () => {
++    const diagnostic = summarizeToolCallInput('{"filePath":"/tmp/a.md","content":"# Title\\n```json\\n{}\\n```"}', [
++      "filePath",
++      "content",
++    ])
++
++    expect(diagnostic.kind).toBe("unknown")
++    expect(diagnostic.receivedKeys).toEqual(["content", "filePath"])
++  })
++
++  test("bounds and redacts raw snippets", () => {
++    const diagnostic = summarizeToolCallInput(
++      `{"apiKey":"secret","content":"${"x".repeat(400)}"`,
++      ["filePath", "content"],
++    )
++
++    expect(diagnostic.rawSnippet).toContain("[redacted]")
++    expect(diagnostic.rawSnippet.length).toBeLessThanOrEqual(243)
++  })
++})
+diff --git a/packages/opencode/test/tool/parameters.test.ts b/packages/opencode/test/tool/parameters.test.ts
+index 4e56c61..51e982b 100644
+--- a/packages/opencode/test/tool/parameters.test.ts
++++ b/packages/opencode/test/tool/parameters.test.ts
+@@ -170,6 +170,25 @@ describe("tool parameters", () => {
+     test("accepts tool + error", () => {
+       expect(parse(Invalid, { tool: "foo", error: "bar" })).toEqual({ tool: "foo", error: "bar" })
+     })
++    test("accepts diagnostic payload", () => {
++      expect(
++        parse(Invalid, {
++          tool: "write",
++          error: "JSON parsing failed",
++          diagnostic: "truncated_json",
++          expectedKeys: ["filePath", "content"],
++          receivedKeys: [],
++          rawSnippet: "{",
++        }),
++      ).toEqual({
++        tool: "write",
++        error: "JSON parsing failed",
++        diagnostic: "truncated_json",
++        expectedKeys: ["filePath", "content"],
++        receivedKeys: [],
++        rawSnippet: "{",
++      })
++    })
+     test("rejects missing fields", () => {
+       expect(accepts(Invalid, { tool: "foo" })).toBe(false)
+       expect(accepts(Invalid, { error: "bar" })).toBe(false)
+@@ -283,6 +302,11 @@ describe("tool parameters", () => {
+   })
+ 
+   describe("write", () => {
++    test("declares filePath before content", () => {
++      const schema = toJsonSchema(Write)
++      const properties = Object.keys(schema.properties ?? {})
++      expect(properties.slice(0, 2)).toEqual(["filePath", "content"])
++    })
+     test("accepts content + filePath", () => {
+       expect(parse(Write, { content: "hi", filePath: "/a" })).toEqual({ content: "hi", filePath: "/a" })
+     })
