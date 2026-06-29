@@ -1,0 +1,44 @@
+{
+  "name": "openwrite-opencode-pack",
+  "version": "0.1.0",
+  "target": {
+    "os": "Windows 10",
+    "shell": "PowerShell 7.6",
+    "network": "GitHub-only or internal GitHub mirror"
+  },
+  "constraints": {
+    "publicNpmRegistry": false,
+    "winget": false,
+    "choco": false,
+    "wsl": false,
+    "externalRuntimeDependencies": ["node", "git", "pwsh", "opencode"]
+  },
+  "defaultInstallSurface": ".opencode/tools",
+  "tools": [
+    ".opencode/tools/fast_write.js",
+    ".opencode/tools/fast_apply.js",
+    ".opencode/tools/openwrite_doctor.js",
+    ".opencode/tools/openwrite_install.js",
+    ".opencode/tools/openwrite_smoke.js",
+    ".opencode/tools/openwrite_make_offline_bundle.js",
+    ".opencode/tools/openwrite_verify_offline_bundle.js"
+  ],
+  "commands": [
+    ".opencode/commands/openwrite.md",
+    ".opencode/commands/openwrite-doctor.md",
+    ".opencode/commands/openwrite-smoke.md",
+    ".opencode/commands/openwrite-offline-bundle.md"
+  ],
+  "agents": [
+    ".opencode/agents/openwrite-operator.md",
+    ".opencode/agents/openwrite-reviewer.md"
+  ],
+  "scripts": [
+    ".opencode/openwrite/scripts/install.ps1",
+    ".opencode/openwrite/scripts/doctor.ps1",
+    ".opencode/openwrite/scripts/smoke.ps1",
+    ".opencode/openwrite/scripts/make-offline-bundle.ps1",
+    ".opencode/openwrite/scripts/verify-offline-bundle.ps1",
+    ".opencode/openwrite/scripts/prepare-tools.ps1"
+  ]
+}

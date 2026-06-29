@@ -1,0 +1,94 @@
+{
+  "packageName": "wonder-estimate-opencode-assets",
+  "version": "0.1.0",
+  "createdFor": "Windows/OpenCode project-local estimator workflow",
+  "target": {
+    "host": "Windows 10",
+    "powerShell": "7.6",
+    "node": "built-in modules only",
+    "opencode": "project-local .opencode assets"
+  },
+  "scope": {
+    "owns": [
+      ".opencode/commands/**",
+      ".opencode/agents/**",
+      ".opencode/tools/**",
+      ".opencode/estimate/bin/**",
+      ".opencode/estimate/lib/**",
+      ".opencode/estimate/schema/**",
+      ".opencode/estimate/fixtures/**",
+      ".opencode/estimate/scripts/**",
+      ".opencode/estimate/config/**",
+      ".opencode/estimate/test/**",
+      ".opencode/estimate/install.md",
+      ".opencode/estimate/README.md",
+      ".opencode/estimate/THIRD-PARTY-NOTICES.md",
+      "README.md",
+      "MANIFEST.json"
+    ],
+    "mustNotEdit": [
+      "plan/**",
+      "research/**"
+    ]
+  },
+  "commands": [
+    ".opencode/commands/estimate-feature-duration.md",
+    ".opencode/commands/estimate.md",
+    ".opencode/commands/estimate-doctor.md",
+    ".opencode/commands/estimate-offline-bundle.md"
+  ],
+  "agents": [
+    ".opencode/agents/estimate-estimator.md",
+    ".opencode/agents/estimate-worker.md",
+    ".opencode/agents/estimate-reviewer.md"
+  ],
+  "wrappers": [
+    ".opencode/tools/wonder_estimate_cli.js",
+    ".opencode/tools/wonder_estimate_intake.js",
+    ".opencode/tools/wonder_estimate_split_features.js",
+    ".opencode/tools/wonder_estimate_source_packet.js",
+    ".opencode/tools/wonder_estimate_flow_align.js",
+    ".opencode/tools/wonder_estimate_classify_work.js",
+    ".opencode/tools/wonder_estimate_reference_class.js",
+    ".opencode/tools/wonder_estimate_render_table.js",
+    ".opencode/tools/wonder_estimate_review_gate.js",
+    ".opencode/tools/wonder_estimate_spawn_node.js",
+    ".opencode/tools/wonder_estimate_runner.js",
+    ".opencode/tools/wonder_estimate_install.js",
+    ".opencode/tools/wonder_estimate_doctor.js",
+    ".opencode/tools/wonder_estimate_qwen_preflight.js",
+    ".opencode/tools/wonder_estimate_smoke.js",
+    ".opencode/tools/wonder_estimate_collect_evidence.js",
+    ".opencode/tools/wonder_estimate_make_offline_bundle.js",
+    ".opencode/tools/wonder_estimate_verify_offline_bundle.js"
+  ],
+  "toolRuntime": [
+    ".opencode/tools/package.json"
+  ],
+  "scripts": [
+    ".opencode/estimate/scripts/install.ps1",
+    ".opencode/estimate/scripts/doctor.ps1",
+    ".opencode/estimate/scripts/qwen-preflight.ps1",
+    ".opencode/estimate/scripts/smoke.ps1",
+    ".opencode/estimate/scripts/collect-evidence.ps1",
+    ".opencode/estimate/scripts/make-offline-bundle.ps1",
+    ".opencode/estimate/scripts/verify-offline-bundle.ps1"
+  ],
+  "runtime": [
+    ".opencode/estimate/bin/opencode-estimate.mjs",
+    ".opencode/estimate/lib/*.mjs",
+    ".opencode/estimate/schema/*.json",
+    ".opencode/estimate/fixtures/legacy-sample/request.json",
+    ".opencode/estimate/fixtures/failure-empty-evidence/estimate.json",
+    ".opencode/estimate/test/*.mjs"
+  ],
+  "config": [
+    ".opencode/estimate/config/qwen3.6-35b.example.json"
+  ],
+  "security": {
+    "arbitraryCommandStringsAccepted": false,
+    "jsProcessExecution": "child_process.spawn with shell:false",
+    "externalNodeDependencies": false,
+    "externalPowerShellModules": false
+  }
+}

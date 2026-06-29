@@ -2,7 +2,7 @@
 set -euo pipefail
 
 MODE="${1:-all}"
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PATCH="$ROOT/patches/opencode-write-json-repair.patch"
 EVIDENCE_DIR="$ROOT/.omo/ulw-loop/opencode-write-json-repair-impl/evidence"
 TARGET="${OPENCODE_VERIFY_TARGET:-/private/tmp/opencode-ultraresearch}"

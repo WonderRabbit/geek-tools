@@ -18,7 +18,7 @@
 
 ## 자동 설치
 
-`opencode/fix` 패키지 루트에서 실행한다.
+`opencode` 디렉터리에서 실행한다.
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\install-opencode-write-json-repair.ps1 -OpenCodeRoot C:\src\opencode

@@ -1,0 +1,52 @@
+{
+  "title": "OpenCode Qwen estimator CLI core",
+  "description": "Implement a dependency-free Node ESM estimator CLI for an OpenCode Qwen estimate workflow.",
+  "goals": [
+    "Capture intake and normalize legacy request data",
+    "Split work into implementation tasks",
+    "Build packetized agent instructions",
+    "Classify, reference-class, estimate, render, review, and calibrate the result"
+  ],
+  "constraints": [
+    "Use only Node built-ins",
+    "Fail closed when file paths escape the selected root",
+    "Keep JSON parse and size errors bounded"
+  ],
+  "acceptance": [
+    "node --test test/*.test.mjs passes",
+    "bin/opencode-estimate.mjs --help prints the command list",
+    "all commands produce deterministic output"
+  ],
+  "files": [
+    {
+      "path": "bin/opencode-estimate.mjs",
+      "reason": "CLI entrypoint"
+    },
+    {
+      "path": "lib/cli.mjs",
+      "reason": "command dispatch"
+    },
+    {
+      "path": "lib/workflow.mjs",
+      "reason": "deterministic estimator transforms"
+    }
+  ],
+  "flows": [
+    "DF-CLI-01: request JSON is normalized into estimate intake",
+    "BF-EST-01: evidence packet is classified before effort is rendered"
+  ],
+  "references": [
+    {
+      "label": "Node.js test runner",
+      "url": "https://nodejs.org/api/test.html"
+    }
+  ],
+  "priorRuns": [
+    {
+      "id": "legacy-cli-001",
+      "label": "Small ESM CLI with tests",
+      "actualHours": 3.5,
+      "notes": "Included path and JSON error coverage"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "kind": "estimate.estimate",
+  "version": 1,
+  "intakeId": "failure-empty-evidence",
+  "title": "Failure fixture: empty evidence",
+  "work_classification": {
+    "class": "simple_small_change",
+    "modifier_dimensions": {
+      "functional_size": "small",
+      "coupling": "module",
+      "uncertainty": "clear",
+      "verification_burden": "normal",
+      "reversibility": "easy",
+      "developer_familiarity": "high",
+      "mechanical_repetition": "none"
+    },
+    "source_flow_alignment_status": "partial",
+    "packet_evidence_statuses": []
+  },
+  "effort_hours": {
+    "p50": 1,
+    "p80": 2,
+    "p95": 3
+  },
+  "duration_days": {
+    "p50": 0.2,
+    "p80": 0.4,
+    "p95": 0.5
+  },
+  "confidence": "medium",
+  "drivers": [],
+  "assumptions": [],
+  "missing_info": [],
+  "evidence_refs": [],
+  "source_evidence_refs": [],
+  "flow_evidence_refs": [],
+  "counterevidence": [],
+  "status": "draft"
+}

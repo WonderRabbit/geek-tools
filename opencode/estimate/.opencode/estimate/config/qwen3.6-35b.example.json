@@ -1,0 +1,26 @@
+{
+  "name": "wonder-estimate-qwen3.6-35b",
+  "provider": "openai-compatible",
+  "endpoint": "http://127.0.0.1:8000",
+  "apiKeyEnvironmentVariable": "OPENAI_API_KEY",
+  "model": "qwen3.6-35b",
+  "request": {
+    "temperature": 0.1,
+    "top_p": 0.8,
+    "max_tokens": 4096
+  },
+  "toolUse": {
+    "mode": "bounded",
+    "requireJsonArguments": true,
+    "preferProjectLocalTools": true
+  },
+  "windows": {
+    "requiredPowerShell": "7.6",
+    "pathStyle": "literal"
+  },
+  "notes": [
+    "이 파일은 예시 config다. 실제 provider endpoint와 model id는 사용 중인 OpenAI-compatible 서버에 맞게 바꾼다.",
+    "Qwen 계열 모델을 OpenCode에서 사용할 때는 command packet을 작게 유지하고, 임의 shell 문자열 대신 wonder_estimate_* wrapper를 우선 사용한다."
+  ]
+}
+

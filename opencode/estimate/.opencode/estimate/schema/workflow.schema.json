@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenCode estimate workflow documents",
+  "type": "object",
+  "required": ["kind", "version"],
+  "properties": {
+    "kind": {
+      "enum": [
+        "estimate.intake",
+        "estimate.split",
+        "estimate.packet",
+        "estimate.flow-align",
+        "estimate.classification",
+        "estimate.reference-class",
+        "estimate.estimate",
+        "estimate.review",
+        "estimate.calibration",
+        "estimate.evidence-adapters"
+      ]
+    },
+    "version": { "type": "integer" }
+  },
+  "oneOf": [
+    {
+      "properties": { "kind": { "const": "estimate.intake" } },
+      "required": ["kind", "version", "id", "title", "summary", "goals", "files", "flowRefs", "developerProfile"]
+    },
+    {
+      "properties": { "kind": { "const": "estimate.split" } },
+      "required": ["kind", "version", "intakeId", "title", "features", "developerProfile", "calibrationExamples"]
+    },
+    {
+      "properties": { "kind": { "const": "estimate.packet" } },
+      "required": ["kind", "version", "intakeId", "title", "packets", "developerProfile", "calibrationExamples"]
+    },
+    {
+      "properties": { "kind": { "const": "estimate.flow-align" } },
+      "required": ["kind", "version", "intakeId", "title", "packets", "developerProfile", "calibrationExamples"]
+    },
+    {
+      "properties": { "kind": { "const": "estimate.classification" } },
+      "required": [
+        "kind",
+        "version",
+        "intakeId",
+        "title",
+        "logic_complexity",
+        "change_volume",
+        "class",
+        "modifier_dimensions",
+        "signals",
+        "classification_confidence",
+        "split_required",
+        "evidence_refs",
+        "source_evidence_refs",
+        "flow_evidence_refs",
+        "packet_evidence_statuses",
+        "source_flow_alignment_status",
+        "packets",
+        "calibrationExamples"
+      ]
+    },
+    {
+      "properties": { "kind": { "const": "estimate.reference-class" } },
+      "required": [
+        "kind",
+        "version",
+        "intakeId",
+        "title",
+        "classification",
+        "modifier_dimensions",
+        "match_basis",
+        "base_hours",
+        "calibration_factor",
+        "samples"
+      ]
+    },
+    {
+      "properties": { "kind": { "const": "estimate.estimate" } },
+      "required": [
+        "kind",
+        "version",
+        "intakeId",
+        "title",
+        "work_classification",
+        "reference_class",
+        "effort_hours",
+        "duration_days",
+        "confidence",
+        "drivers",
+        "assumptions",
+        "missing_info",
+        "evidence_refs",
+        "source_evidence_refs",
+        "flow_evidence_refs",
+        "counterevidence",
+        "status"
+      ]
+    },
+    {
+      "properties": { "kind": { "const": "estimate.review" } },
+      "required": ["kind", "version", "intakeId", "title", "ok", "status", "findings"]
+    },
+    {
+      "properties": { "kind": { "const": "estimate.calibration" } },
+      "required": [
+        "kind",
+        "version",
+        "intakeId",
+        "title",
+        "work_class",
+        "estimate_hours_p50",
+        "estimate_hours_p80",
+        "actual_hours",
+        "error_ratio",
+        "modifier_dimensions",
+        "advice"
+      ]
+    },
+    {
+      "properties": { "kind": { "const": "estimate.evidence-adapters" } },
+      "required": ["kind", "version", "targetRoot", "generatedAt", "tools", "adapters", "evidenceHints"]
+    }
+  ],
+  "$defs": {
+    "typedEvidence": {
+      "type": "object",
+      "properties": {
+        "evidence_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "source_evidence_refs": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^file:" }
+        },
+        "flow_evidence_refs": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^flow:" }
+        }
+      }
+    }
+  }
+}
