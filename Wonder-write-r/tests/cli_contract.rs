@@ -113,6 +113,58 @@ fn fast_apply_applies_valid_patch() {
     );
 }
 
+#[test]
+fn fast_apply_accepts_strip_zero_patch() {
+    let root = temp_root("wwr-apply-strip0");
+    fs::write(root.join("target.txt"), "before\n").unwrap();
+    Command::new("git")
+        .args(["init"])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["add", "target.txt"])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["commit", "-m", "initial"])
+        .current_dir(&root)
+        .env("GIT_AUTHOR_NAME", "Test")
+        .env("GIT_AUTHOR_EMAIL", "test@example.com")
+        .env("GIT_COMMITTER_NAME", "Test")
+        .env("GIT_COMMITTER_EMAIL", "test@example.com")
+        .output()
+        .unwrap();
+    let patch = root.join("change.patch");
+    fs::write(
+        &patch,
+        "--- target.txt\n+++ target.txt\n@@ -1 +1 @@\n-before\n+after\n",
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_wonder-write-r"))
+        .args([
+            "fast-apply",
+            "--root",
+            root.to_str().unwrap(),
+            "--patch-file",
+            patch.to_str().unwrap(),
+            "--strip",
+            "0",
+        ])
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("\"ok\":true"));
+    assert_eq!(
+        fs::read_to_string(root.join("target.txt")).unwrap(),
+        "after\n"
+    );
+}
+
 fn temp_root(prefix: &str) -> std::path::PathBuf {
     let root = std::env::temp_dir().join(format!(
         "{}-{}-{}",

@@ -61,7 +61,7 @@ where
                 }
                 None => BTreeMap::new(),
             };
-            let strip = parsed.number("strip", 1);
+            let strip = parsed.number_allow_zero("strip", 1);
             let max = parsed.number("max-evidence-bytes", core::default_max_evidence_bytes());
             core::fast_apply(
                 &root,
@@ -216,6 +216,12 @@ impl Args {
         self.flag(name)
             .and_then(|item| item.parse::<usize>().ok())
             .filter(|item| *item >= 1)
+            .unwrap_or(fallback)
+    }
+
+    fn number_allow_zero(&self, name: &str, fallback: usize) -> usize {
+        self.flag(name)
+            .and_then(|item| item.parse::<usize>().ok())
             .unwrap_or(fallback)
     }
 }
