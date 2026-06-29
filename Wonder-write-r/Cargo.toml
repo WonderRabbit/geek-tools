@@ -1,0 +1,19 @@
+[package]
+name = "wonder-write-r"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Rust OpenCode fast write/apply helper for workspace-local file operations."
+
+[lib]
+name = "wonder_write_r"
+path = "src/lib.rs"
+
+[[bin]]
+name = "wonder-write-r"
+path = "src/main.rs"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
