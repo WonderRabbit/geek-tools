@@ -1,0 +1,70 @@
+{
+  "packageName": "wonder-codegraph-opencode-assets",
+  "version": "0.1.0",
+  "createdFor": "Windows 10 / PowerShell 7.6 / OpenCode project-local CodeGraph evidence workflow",
+  "target": {
+    "host": "Windows 10",
+    "powerShell": "7.6",
+    "node": "built-in modules only for local scripts",
+    "opencode": "project-local .opencode assets"
+  },
+  "scope": {
+    "owns": [
+      "README.md",
+      "MANIFEST.json",
+      "opencode.json",
+      "install-opencode-codegraph.ps1",
+      ".opencode/agents/**",
+      ".opencode/commands/**",
+      ".opencode/tools/**",
+      ".opencode/codegraph/bin/**",
+      ".opencode/codegraph/examples/**",
+      ".opencode/codegraph/runtime/README.md",
+      ".opencode/codegraph/schema/**",
+      ".opencode/codegraph/scripts/**",
+      ".opencode/codegraph/test/**",
+      ".opencode/codegraph/vendor/**"
+    ],
+    "mustNotEdit": [
+      "../plan/**",
+      "../../openwrite/**",
+      "../../estimate/**",
+      "../../fix/**"
+    ]
+  },
+  "commands": [
+    ".opencode/commands/codegraph-doctor.md",
+    ".opencode/commands/codegraph-map.md",
+    ".opencode/commands/codegraph-impact.md"
+  ],
+  "agents": [
+    ".opencode/agents/codegraph-evidence.md"
+  ],
+  "wrappers": [
+    ".opencode/tools/wonder_codegraph_doctor.js",
+    ".opencode/tools/wonder_codegraph_repo_map.js",
+    ".opencode/tools/wonder_codegraph_impact_packet.js"
+  ],
+  "scripts": [
+    "install-opencode-codegraph.ps1",
+    ".opencode/codegraph/scripts/install-codegraph-mcp.ps1",
+    ".opencode/codegraph/scripts/verify-codegraph-mcp.ps1",
+    ".opencode/codegraph/scripts/make-codegraph-mcp-offline-bundle.ps1",
+    ".opencode/codegraph/scripts/smoke.ps1"
+  ],
+  "runtime": [
+    ".opencode/codegraph/scripts/wonder-codegraph.mjs",
+    ".opencode/codegraph/scripts/resolve-codegraph.mjs",
+    ".opencode/codegraph/scripts/mcp-proxy.mjs",
+    ".opencode/codegraph/schema/repo-link-manifest.schema.json",
+    ".opencode/codegraph/examples/repo-link-manifest.json",
+    ".opencode/codegraph/test/*.mjs"
+  ],
+  "security": {
+    "arbitraryCommandStringsAccepted": false,
+    "jsProcessExecution": "child_process.spawn/spawnSync with shell:false",
+    "externalNodeDependencies": false,
+    "externalPowerShellModules": false,
+    "closedNetworkDefault": "offline CodeGraph release archive extracted to .opencode/codegraph/runtime/current"
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenCode CodeGraph Repo Link Manifest",
+  "type": "object",
+  "required": ["version", "repositories"],
+  "properties": {
+    "version": { "type": "string" },
+    "repositories": {
+      "type": "object",
+      "required": ["frontend", "backends"],
+      "properties": {
+        "frontend": { "$ref": "#/$defs/repository" },
+        "backends": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/repository" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "repository": {
+      "type": "object",
+      "required": ["id", "kind", "path"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["frontend", "backend"] },
+        "framework": { "type": "string" },
+        "path": { "type": "string" },
+        "codegraphIndex": { "type": "string" },
+        "serviceName": { "type": "string" },
+        "routePrefix": { "type": "string" },
+        "generatedClients": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "contracts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact" }
+        },
+        "runtime": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact" }
+        },
+        "tests": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact" }
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["kind", "path"],
+      "properties": {
+        "kind": { "type": "string" },
+        "path": { "type": "string" }
+      }
+    }
+  }
+}

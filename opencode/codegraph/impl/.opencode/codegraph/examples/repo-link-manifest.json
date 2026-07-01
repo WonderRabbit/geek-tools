@@ -1,0 +1,83 @@
+{
+  "version": "1",
+  "repositories": {
+    "frontend": {
+      "id": "frontend-web",
+      "kind": "frontend",
+      "framework": "react",
+      "path": "./frontend-web",
+      "codegraphIndex": "./frontend-web/.codegraph",
+      "generatedClients": [
+        "src/api/generated"
+      ],
+      "contracts": [
+        {
+          "kind": "openapi-client",
+          "path": "src/api/generated"
+        }
+      ],
+      "tests": [
+        {
+          "kind": "frontend-test",
+          "path": "src/**/*.test.tsx"
+        }
+      ]
+    },
+    "backends": [
+      {
+        "id": "order-service",
+        "kind": "backend",
+        "framework": "spring-boot",
+        "path": "./order-service",
+        "codegraphIndex": "./order-service/.codegraph",
+        "serviceName": "order-service",
+        "routePrefix": "/orders",
+        "contracts": [
+          {
+            "kind": "openapi",
+            "path": "src/main/resources/openapi.yaml"
+          }
+        ],
+        "runtime": [
+          {
+            "kind": "actuator-mappings",
+            "path": "http://localhost:8080/actuator/mappings"
+          }
+        ],
+        "tests": [
+          {
+            "kind": "contract-test",
+            "path": "src/test"
+          }
+        ]
+      },
+      {
+        "id": "billing-service",
+        "kind": "backend",
+        "framework": "vertx",
+        "path": "./billing-service",
+        "codegraphIndex": "./billing-service/.codegraph",
+        "serviceName": "billing-service",
+        "routePrefix": "/billing",
+        "contracts": [
+          {
+            "kind": "openapi",
+            "path": "src/main/resources/openapi.yaml"
+          }
+        ],
+        "runtime": [
+          {
+            "kind": "otel-http-route",
+            "path": "otel://service.name=billing-service"
+          }
+        ],
+        "tests": [
+          {
+            "kind": "backend-test",
+            "path": "src/test"
+          }
+        ]
+      }
+    ]
+  }
+}
